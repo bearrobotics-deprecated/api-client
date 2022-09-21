@@ -4,7 +4,7 @@ This is a simple client program to demonstrate using Bear Robotics mission API u
 ## Getting the client
 The client can be installed using gotool. This command will install the binary in `$GOPATH/bin`.
 ```sh
-go install gitlab.com/bearrobotics-public/api-client
+go install gitlab.com/bearrobotics-public/api-client@latest
 ```
 
 
@@ -75,7 +75,7 @@ The Client can send commands to the mission service running on the robot in the 
 ```sh
  api-client -mode rpc -func\
  '{"cmd": "/api/2/post/mission/new", "args": {"destinations": ["T1", "T2"], \
- "trays": [{"name": "top", "destination": "T1"}, {"name": "middle", "destination": "T2"}], "mode": "Serving"}}'
+ "trays": [{"name": "top", "destination": "T1"}, {"name": "middle", "destination": "T2"}], "mode": "Simple"}}'
 ```
 3. Getting mission status
 ```sh
