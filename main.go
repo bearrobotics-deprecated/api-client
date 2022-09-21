@@ -11,7 +11,7 @@ import (
 	"time"
 
 	amqpgo "github.com/rabbitmq/amqp091-go"
-	"gitlab.com/sajjad7/bear-api-client/amqp"
+	"gitlab.com/bearrobotics-public/api-client/amqp"
 )
 
 const (
