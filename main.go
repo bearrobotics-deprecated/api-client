@@ -118,12 +118,38 @@ func main() {
 			}
 		}()
 
+		heartbeatSub := amqp.NewSubscriber(ch)
+		heartbeatUpdates, err := heartbeatSub.Subscribe(*robotID, *robotID+"/heartbeat")
+		if err != nil {
+			log.Printf("Faild to consume topic: %v.", err)
+		}
+		defer func() {
+			err = heartbeatSub.Unsubscribe()
+			if err != nil {
+				log.Printf("Failed to unsubscribe: %v", err)
+			}
+		}()
+
 		for {
 			select {
-			case msg := <-missionUpdates:
+			case msg, ok := <-missionUpdates:
+				if !ok {
+					log.Printf("Mission update channel is closed")
+					return
+				}
 				log.Printf("New mission update: %s.", string(msg.Body))
-			case msg := <-trayUpdates:
+			case msg, ok := <-trayUpdates:
+				if !ok {
+					log.Printf("Trays update channel is closed")
+					return
+				}
 				log.Printf("New tray update: %s.", string(msg.Body))
+			case _, ok := <-heartbeatUpdates:
+				if !ok {
+					log.Printf("Heartbeat update channel is closed")
+					return
+				}
+				log.Printf("New Heartbeat.")
 			}
 		}
 	}

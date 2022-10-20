@@ -37,7 +37,7 @@ type Delivery struct {
 type ChannelIntf interface {
 	Consume(queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqpgo.Table) (<-chan amqpgo.Delivery, error)
 	PublishWithContext(ctx context.Context, exchange, key string, mandatory, immediate bool, msg amqpgo.Publishing) error
-	ExchangeDeclare(name, kind string, durable, autoDelete, internal, noWait bool, args amqpgo.Table) error
+	ExchangeDeclarePassive(name, kind string, durable, autoDelete, internal, noWait bool, args amqpgo.Table) error
 	QueueDeclare(name string, durable, autoDelete, exclusive, noWait bool, args amqpgo.Table) (amqpgo.Queue, error)
 	QueueBind(name, key, exchange string, noWait bool, args amqpgo.Table) error
 	ExchangeBind(destination, key, source string, noWait bool, args amqpgo.Table) error
@@ -117,15 +117,15 @@ func (c *Caller) Call(robotID string, command []byte, timeout time.Duration) (re
 	corrID := randomString(32)
 
 	q, err := ch.QueueDeclare(
-		"",    // name
-		false, // durable
-		false, // delete when unused
-		true,  // exclusive
-		false, // noWait
-		nil,   // arguments
+		"",                  // name
+		false,               // durable
+		true,                // delete when unused
+		true,                // exclusive
+		false,               // noWait
+		GetNewQueueParams(), // arguments
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to declare queue: %w", err)
+		return nil, fmt.Errorf("failed to declare queue (passively): %w", err)
 	}
 
 	msgs, err := ch.Consume(
@@ -162,7 +162,10 @@ func (c *Caller) Call(robotID string, command []byte, timeout time.Duration) (re
 		select {
 		case <-time.After(timeout):
 			return nil, fmt.Errorf("timed out")
-		case d := <-msgs:
+		case d, ok := <-msgs:
+			if !ok {
+				return nil, fmt.Errorf("channel is closed")
+			}
 			if corrID == d.CorrelationId {
 				return d.Body, nil
 			}
@@ -189,12 +192,16 @@ func (s *Subscriber) Subscribe(id, topic string) (chan Delivery, error) {
 	d := make(chan Delivery)
 	// Convert amqpgo.Delivery to Delivery
 	go func() {
+		defer close(d)
+
 		for {
 			select {
 			case <-ctx.Done():
-				close(d)
 				return
-			case val := <-ch:
+			case val, ok := <-ch:
+				if !ok {
+					return
+				}
 				d <- Delivery{Origin: id, Body: val.Body}
 			}
 		}
@@ -216,7 +223,7 @@ func (s *Subscriber) Unsubscribe() error {
 
 // consumeTopic returns a consumer to a fanout exchange with given name published by the service.
 func consumeTopic(ch ChannelIntf, topic string) (d <-chan amqpgo.Delivery, err error) {
-	err = ch.ExchangeDeclare(
+	err = ch.ExchangeDeclarePassive(
 		topic,    // name
 		"fanout", // type
 		true,     // durable
@@ -226,16 +233,16 @@ func consumeTopic(ch ChannelIntf, topic string) (d <-chan amqpgo.Delivery, err e
 		nil,      // arguments
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to declare exchange: %w", err)
+		return nil, fmt.Errorf("failed to declare exchange (passively): %w", err)
 	}
 
 	queue, err := ch.QueueDeclare(
-		"",    // name
-		false, // durable
-		false, // delete when unused
-		true,  // exclusive
-		false, // no-wait
-		nil,   // arguments
+		"",                  // name
+		false,               // durable
+		true,                // delete when unused
+		true,                // exclusive
+		false,               // no-wait
+		GetNewQueueParams(), // arguments
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to declare a queue: %w", err)
