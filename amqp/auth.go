@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path"
 )
 
@@ -12,7 +12,7 @@ import (
 // as well as private key for client (all int .PEM format).
 func newTLSConfig(caPem, certPem, keyPem []byte) (*tls.Config, error) {
 	certPool := x509.NewCertPool()
-	if certPool.AppendCertsFromPEM(caPem) != true {
+	if !certPool.AppendCertsFromPEM(caPem) {
 		return nil, fmt.Errorf("failed to append cert from pem")
 	}
 
@@ -28,17 +28,17 @@ func newTLSConfig(caPem, certPem, keyPem []byte) (*tls.Config, error) {
 }
 
 func getTLSConfig(certPath string) (*tls.Config, error) {
-	caPem, err := ioutil.ReadFile(path.Join(certPath, "ca_certificate.pem"))
+	caPem, err := os.ReadFile(path.Join(certPath, "ca_certificate.pem"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read cert file: %w", err)
 	}
 
-	certPem, err := ioutil.ReadFile(path.Join(certPath, "certificate.pem"))
+	certPem, err := os.ReadFile(path.Join(certPath, "certificate.pem"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read cert file: %w", err)
 	}
 
-	keyPem, err := ioutil.ReadFile(path.Join(certPath, "key.pem"))
+	keyPem, err := os.ReadFile(path.Join(certPath, "key.pem"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read key file: %w", err)
 	}
