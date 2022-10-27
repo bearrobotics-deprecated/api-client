@@ -6,9 +6,14 @@ import (
 	"fmt"
 	"math/rand"
 	"net/url"
+	"time"
 
 	amqpgo "github.com/rabbitmq/amqp091-go"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 // randInt returns a random integer with the give reange.
 func randInt(min int, max int) int {
